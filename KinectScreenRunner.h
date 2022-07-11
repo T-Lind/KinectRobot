@@ -23,15 +23,18 @@ typedef steady_clock Clock;
  ******************************************************/
 class KinectScreenRunner {
 public:
-
+	// Function to draw the pixels to a window in the current buffer
 	void DrawPixelBuffer(SDL_Texture* texture, SDL_Renderer* renderer,
 		const uint32* pixelBuffer);
+
+	// Function to start the screen running
 	int RunScreen();
 
-	uint32* GetPixelBufferAddress() {
-		return pixelBuffer;
+	// Constant function to get the address of the pixel buffer
+	const uint32* GetPixelBufferOneAddress() {
+		return m_pixel_buffer_1;
 	}
 
 private:
-	uint32* pixelBuffer = new uint32[SCRWIDTH * SCRHEIGHT];
+	uint32* m_pixel_buffer_1 = new uint32[SCRWIDTH * SCRHEIGHT];
 };

@@ -53,9 +53,9 @@ int KinectScreenRunner::RunScreen() {
     //initialize SDL
     SDL_Init(SDL_INIT_VIDEO);
 
-    // Create a window
+    // Create a window for the depth map
     SDL_Window* window = SDL_CreateWindow(
-        "Kinect Depth Map", 100, 100, SCRWIDTH, SCRHEIGHT, 0);
+        "Kinect Floor Map - Top View", 100, 100, SCRWIDTH, SCRHEIGHT, 0);
     if (window == nullptr)
         return 1;
 
@@ -65,6 +65,7 @@ int KinectScreenRunner::RunScreen() {
     if (renderer == nullptr)
         return 2;
 
+
     //create a texture
     SDL_Texture* texture = SDL_CreateTexture(
         renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
@@ -72,18 +73,20 @@ int KinectScreenRunner::RunScreen() {
     if (texture == nullptr)
         return 3;
 
-    if (pixelBuffer == nullptr)
+    if (texture == nullptr)
+        return 3;
+
+    if (m_pixel_buffer_1 == nullptr)
         return 4;
 
     //clear the pixel buffer
-    memset(pixelBuffer, 0, SCRWIDTH * SCRHEIGHT * 4);
+    memset(m_pixel_buffer_1, 0, SCRWIDTH * SCRHEIGHT * 4);
 
     //draw pixel buffer to the screen
-    DrawPixelBuffer(texture, renderer, pixelBuffer);
-
+    DrawPixelBuffer(texture, renderer, m_pixel_buffer_1);
 
     KinectProgram program;
-    program.SetPixelBuffer(pixelBuffer);
+    program.SetPixelBuffer(m_pixel_buffer_1);
     program.Init();
 
     auto lastTime = Clock::now();
@@ -122,7 +125,9 @@ int KinectScreenRunner::RunScreen() {
         program.Run(deltaTime);
 
         //draw pixel buffer to the screen
-        DrawPixelBuffer(texture, renderer, pixelBuffer);
+        DrawPixelBuffer(texture, renderer, m_pixel_buffer_1);
+
+        memset(m_pixel_buffer_1, 0, SCRWIDTH * SCRHEIGHT * 4);
     }
 
 

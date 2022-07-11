@@ -39,11 +39,11 @@ void App::Init()
     //get depth frame description
     IFrameDescription* frameDesc;
     depthFrameSource->get_FrameDescription(&frameDesc);
-    frameDesc->get_Width(&m_depthWidth);
-    frameDesc->get_Height(&m_depthHeight);
+    frameDesc->get_Width(&m_depth_width);
+    frameDesc->get_Height(&m_depth_height);
 
     //get the depth frame reader
-    hr = depthFrameSource->OpenReader(&m_depthFrameReader);
+    hr = depthFrameSource->OpenReader(&m_depth_frame_reader);
     if (FAILED(hr))
     {
         printf("Failed to open the depth frame reader!\n");
@@ -53,7 +53,7 @@ void App::Init()
     SafeRelease(depthFrameSource);
 
     //allocate depth buffer
-    m_depthBuffer = new uint16[m_depthWidth * m_depthHeight];
+    m_depth_buffer = new uint16[m_depth_width * m_depth_height];
 
     //get color frame source
     IColorFrameSource* colorFrameSource;
@@ -65,7 +65,7 @@ void App::Init()
     }
 
     //get color frame reader
-    hr = colorFrameSource->OpenReader(&m_colorFrameReader);
+    hr = colorFrameSource->OpenReader(&m_color_frame_reader);
     if (FAILED(hr))
     {
         printf("Failed to open color frame reader!\n");
@@ -76,10 +76,10 @@ void App::Init()
     SafeRelease(colorFrameSource);
 
     //allocate color buffer
-    m_colorBuffer = new uint32[1920 * 1080];
+    m_color_buffer = new uint32[1920 * 1080];
 
     //get the coordinate mapper
-    hr = m_sensor->get_CoordinateMapper(&m_coordinateMapper);
+    hr = m_sensor->get_CoordinateMapper(&m_coordinate_mapper);
     if (FAILED(hr))
     {
         printf("Failed to get coordinate mapper!\n");
@@ -87,7 +87,7 @@ void App::Init()
     }
 
     //allocate a buffer of color space points
-    m_colorSpacePoints = new ColorSpacePoint[m_depthWidth * m_depthHeight];
+    m_color_space_points = new ColorSpacePoint[m_depth_width * m_depth_height];
 }
 
 /******************************************************
@@ -108,13 +108,13 @@ void App::Run(float deltaTime)
 
     //depth stuff
     IDepthFrame* depthFrame;
-    hr = m_depthFrameReader->AcquireLatestFrame(&depthFrame);
+    hr = m_depth_frame_reader->AcquireLatestFrame(&depthFrame);
 
 
     if (FAILED(hr)) return;
 
     hr = depthFrame->CopyFrameDataToArray(
-        m_depthWidth * m_depthHeight, m_depthBuffer);
+        m_depth_width * m_depth_height, m_depth_buffer);
 
 
     if (FAILED(hr))
@@ -130,20 +130,20 @@ void App::Run(float deltaTime)
 
     //color stuff
     IColorFrame* colorFrame;
-    hr = m_colorFrameReader->AcquireLatestFrame(&colorFrame);
+    hr = m_color_frame_reader->AcquireLatestFrame(&colorFrame);
     if (FAILED(hr))
         return;
 
     hr = colorFrame->CopyConvertedFrameDataToArray(
-        1920 * 1080 * 4, (BYTE*)m_colorBuffer, ColorImageFormat_Bgra);
+        1920 * 1080 * 4, (BYTE*)m_color_buffer, ColorImageFormat_Bgra);
     if (FAILED(hr))
         return;
 
     SafeRelease(colorFrame);
 
-    hr = m_coordinateMapper->MapDepthFrameToColorSpace(
-        m_depthWidth * m_depthHeight, m_depthBuffer,
-        m_depthWidth * m_depthHeight, m_colorSpacePoints);
+    hr = m_coordinate_mapper->MapDepthFrameToColorSpace(
+        m_depth_width * m_depth_height, m_depth_buffer,
+        m_depth_width * m_depth_height, m_color_space_points);
     if (FAILED(hr))
     {
         printf("Oh no! Failed map the depth frame to color space!\n");
@@ -165,10 +165,10 @@ void App::Shutdown()
 {
     //put cleaning up stuff here
 
-    delete[] m_colorBuffer;
-    SafeRelease(m_colorFrameReader);
+    delete[] m_color_buffer;
+    SafeRelease(m_color_frame_reader);
 
-    delete[] m_depthBuffer;
-    SafeRelease(m_depthFrameReader);
+    delete[] m_depth_buffer;
+    SafeRelease(m_depth_frame_reader);
     SafeRelease(m_sensor);
 }

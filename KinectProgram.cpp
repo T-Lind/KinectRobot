@@ -60,47 +60,45 @@ void KinectProgram::Run(float deltaTime)
 
     // Display pixels and depths
 
-    for (int i = 0; i < depthWidth * depthHeight; ++i)
+    for (int i = 0; i < DEPTH_FRAME_WIDTH * DEPTH_FRAME_HEIGHT; ++i)
     {
-        uint16 distance = m_depthBuffer[i];
+        uint16 distance = m_depth_buffer[i];
 
         // Check to see if the kinect has detected a distance in range
-        if (distance != 0)
-        {
+        //if (distance != 0)
+        //{
             // Label image
 
 
-            // Check to see if the pixel is part of the floor - label green if so
-            if (IsPartOfFloor(distance, PixelYAngle(GetYValue1D(i))))
-            {
-                m_pixelBuffer[i] = RGB(0, 200, 0);
-            }
-
-            // Check to see if the pixel is part of the floor - label green if so
-            else if (IsPartOfWall(distance, PixelYAngle(GetYValue1D(i))))
-            {
-                m_pixelBuffer[i] = RGB(0, 0, 200);
-            }
-
-            // If not report the color as a grayscale value depending on depth
-            else
-            {
-                m_pixelBuffer[i] = RGB(distance / 19, distance / 19, distance / 19);
-
-            }
-
-
-
-
-
-
+        if (IsPartOfFloor(distance, PixelYAngle(GetYValue1D(i)))) {
+            int plot_x = TopViewPlotDepthX(i, distance);
+            int plot_y = TopViewPlotDepthY(i, distance);
+            m_pixel_buffer[ConvertCoordinate(plot_x, plot_y)] = RGB(0, 255, 0);
         }
+
+
+            //// Check to see if the pixel is part of the floor - label green if so
+            //if (IsPartOfFloor(distance, PixelYAngle(GetYValue1D(i))))
+            //{
+            //    m_pixel_buffer[i] = RGB(0, 200, 0);
+            //}
+
+
+            //// If not report the color as a grayscale value depending on depth
+            //else
+            //{
+            //    m_pixel_buffer[i] = RGB(distance / 19, distance / 19, distance / 19);
+
+            //}
+
+
+         //}
 
         // The kinect cannot detect the distance at this pixel and sets it to salmon color
-        else
-        {
-            m_pixelBuffer[i] = RGB(220, 220, 255);
-        }
+        //else
+        //{
+        //    m_pixel_buffer[i] = RGB(220, 220, 255);
+        //}
     }
 
 }
@@ -116,35 +114,28 @@ void KinectProgram::Run(float deltaTime)
  * distance at a specific y angle is part of the
  * floor or not.
  ******************************************************/
-bool KinectProgram::IsPartOfFloor(int distance, float yAngleInFrame)
+bool KinectProgram::IsPartOfFloor(int distance, double yAngleInFrame)
 {
     /*
         Do an immediate check here and make an assumption that the
         floor will not extend past halfway in the image. This might
         need to change depending on the robot. Important for removing
-        "wall bands" of detected floor.
+        "wall bands" of detected floor. Here it is okay to check in
+        radians because 0 degrees and 0 rads is equal
     */
-
-    if (-yAngleInFrame * 180 / 3.14159 > 0)
+    if (-yAngleInFrame > 0)
         return false;
 
     // Total angle the depth is below the horizontal - must initially convert to degrees
-    const float yAngle = cameraAngle + (180 * -yAngleInFrame / 3.14159);
-
-    /*
-        The upperand lower bound for what is an acceptable depth
-        measurement to be considered part of the floor
-    */
-    const float cameraHeightUpperBound = cameraHeight * (1 + (marginOfError / 100.0));
-    const float cameraHeightLowerBound = cameraHeight * (1 - (marginOfError / 100.0));
+    const float yAngle = CAMERA_ANGLE + ToDegrees(-yAngleInFrame);
 
 
     // Compute the y distance from the camera the depth is
-    const float yValueFromDepth = std::abs(distance*std::sin(3.15159 * yAngle / 180));
+    const float yValueFromDepth = std::abs(distance*std::sin(ToRadians(yAngle)));
 
 
     // Check to see if the y distance is about how high the camera is off of the ground
-    if (yValueFromDepth >= cameraHeightLowerBound && yValueFromDepth <= cameraHeightUpperBound)
+    if (yValueFromDepth >= CAMERA_HEIGHT_LOWER_BOUND && yValueFromDepth <= CAMERA_HEIGHT_UPPER_BOUND)
     {
         return true;
     }
@@ -155,6 +146,44 @@ bool KinectProgram::IsPartOfFloor(int distance, float yAngleInFrame)
 }
 
 
+int KinectProgram::TopViewPlotDepthX(int i, int distance)
+{
+
+    using namespace std;
+
+
+    double x_angle = PixelXAngle(GetXValue1D(i));
+    double y_angle = PixelYAngle(GetYValue1D(i))+CAMERA_ANGLE;
+
+
+    double x_distance = sin(x_angle)*cos(y_angle) * distance;
+
+    // Convert x distance to a pixel value
+
+    double distance_percent = x_distance / (SIZE_OF_TOP_VIEW);
+
+    return distance_percent * (DEPTH_FRAME_WIDTH / 2) + (DEPTH_FRAME_WIDTH / 2);
+}
+
+
+int KinectProgram::TopViewPlotDepthY(int i, int distance)
+{
+    using namespace std;
+
+    double x_angle = PixelXAngle(GetXValue1D(i));
+    double y_angle = PixelYAngle(GetYValue1D(i))+CAMERA_ANGLE;
+
+    double y_distance = cos(ToRadians(x_angle)) * cos(ToRadians(y_angle)) * distance;
+
+    // Convert x distance to a pixel value
+
+    double distance_percent = y_distance / (SIZE_OF_TOP_VIEW);
+
+
+    return (DEPTH_FRAME_HEIGHT - distance_percent * DEPTH_FRAME_HEIGHT);
+}
+
+
 /******************************************************
  * Function: KinectProgram::IsPartOfWall()
  *
@@ -166,25 +195,16 @@ bool KinectProgram::IsPartOfFloor(int distance, float yAngleInFrame)
  * distance at a specific y angle is part of the
  * floor or not.
  ******************************************************/
-bool KinectProgram::IsPartOfWall(int distance, float yAngleInFrame)
+bool KinectProgram::IsPartOfWall(int distance, double yAngleInFrame)
 {
-    // Total angle the depth is below the horizontal
-    float yAngle = cameraAngle + yAngleInFrame;
-
-    /* 
-        The upperand lower bound for what is an acceptable depth
-        measurement to be considered part of the floor
-    */
-    const float cameraHeightUpperBound = cameraHeight * (1 + (marginOfError / 100.0));
-    const float cameraHeightLowerBound = cameraHeight * (1 - (marginOfError / 100.0));
+    // Total angle the depth is below the horizontal - must initially convert to degrees
+    const float yAngle = CAMERA_ANGLE + (ToDegrees(-yAngleInFrame));
 
     // Compute the y distance from the camera the depth is
-    const float yValueFromDepth = std::abs(distance * std::sin(3.15159 * yAngle / 180));
-
-    //std::cout << yValueFromDepth << std::endl;
+    const float yValueFromDepth = std::abs(distance * std::sin(ToRadians(yAngle)));
 
     // Check to see if the y distance is about how high the camera is off of the ground
-    if (yValueFromDepth >= cameraHeightLowerBound && yValueFromDepth <= cameraHeightUpperBound)
+    if (yValueFromDepth >= CAMERA_HEIGHT_LOWER_BOUND && yValueFromDepth <= CAMERA_HEIGHT_UPPER_BOUND)
     {
         return true;
     }
